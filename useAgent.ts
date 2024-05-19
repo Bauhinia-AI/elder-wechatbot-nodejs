@@ -1,16 +1,55 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import { ERROR_MESSAGE } from './constant';
+import { saveAudioFile } from './utils';
 
 export enum ReplyType {
     TEXT = 'text',
+    AUDIO = 'audio',
+    ERROR = 'error'
 }
 
 export interface Reply {
     type: ReplyType;
     content: string;
+    audioPath?: string;
 }
 
 export const useAgent = () => {
+
+    const fs = require('fs');
+
+    interface ResponseData {
+        response: string;
+    }
+
+    async function getAudioReply(query: string, userId: string): Promise<Reply> {
+        const url: string = "http://47.95.21.135:8014/chat";
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        const data: Record<string, string | boolean> = { "user_id": userId, "query": query, "is_audio": 'True' };
+
+        try {
+            return await axios.post(url, data, { headers }).then(
+                (response: AxiosResponse) => {
+                    if (response.status !== 200) {
+                        console.log("Error with the request:", response.status);
+                        return { 'type': ReplyType.TEXT, 'content': ERROR_MESSAGE };
+                    }
+                    // Assuming the server returns an audio file
+                    const audioContent: ArrayBuffer = response.data;
+                    // Save the audio content to a local file
+                    const filePath = saveAudioFile(audioContent)
+                    return { 'type': ReplyType.AUDIO, 'content': response.data.response, 'audioPath': filePath };
+                }
+            ).catch((error: AxiosError) => {
+                console.error(error);
+                return Promise.resolve({ 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE })
+            }
+            );
+        } catch (error) {
+            console.error(error);
+            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE });
+        }
+    }
 
     async function getReply(userAlias: string, query: string): Promise<Reply> {
         try {
@@ -26,11 +65,11 @@ export const useAgent = () => {
                 })
                 .catch((error: AxiosError) => {
                     console.error(error);
-                    return { 'type': ReplyType.TEXT, 'content': ERROR_MESSAGE };
+                    return { 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE };
                 });
         } catch (e) {
             console.error(e);
-            return Promise.resolve({ 'type': ReplyType.TEXT, 'content': ERROR_MESSAGE });
+            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE });
         }
     }
 
@@ -53,5 +92,5 @@ export const useAgent = () => {
         }
     }
 
-    return { getReply, updateChatDb };
+    return { getAudioReply, getReply, updateChatDb };
 }

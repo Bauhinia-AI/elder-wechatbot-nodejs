@@ -5,6 +5,7 @@ import { Friend } from './contact';
 import { Reply, ReplyType, useAgent } from './useAgent';
 import readline from 'readline';
 import { ERROR_MESSAGE } from './constant';
+import { FileBox } from 'file-box';
 
 
 const weChatBot = () => {
@@ -13,7 +14,7 @@ const weChatBot = () => {
         getContactByAlias,
         setContactList
     } = useContact();
-    const { getReply, updateChatDb } = useAgent();
+    const { getAudioReply, getReply, updateChatDb } = useAgent();
     async function getVerifyCode(): Promise<string> {
         const rl = readline.createInterface({
             input: process.stdin,
@@ -72,25 +73,45 @@ const weChatBot = () => {
         }
     }).on('login', user => {
         console.log(`user: ${JSON.stringify(user)}, friend: ${user.friend()}, ${user.coworker()}`)
-        updateContactList()
+        updateContactListTask()
     }).on('message', async message => {
         console.log(`new message received: ${JSON.stringify(message)}`)
         if (message.type() == types.Message.Text || message.type() == types.Message.Audio || message.type() == types.Message.Emoticon) {
             const talker = message.talker()
             const text = message.text()
-            console.log(`talker: ${talker.name()}, text: ${text}`)
             const alias: string = await talker.alias() ?? "";
-            getReply(alias, message.text())
-                .then((reply: Reply) => {
-                    if (reply.type === ReplyType.TEXT) {
-                        talker.say(reply.content);
-                        updateChatDb(alias, false, message.text())
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                    talker.say(ERROR_MESSAGE);
-                });
+            console.log(`talker: ${alias}, text: ${text}`)
+            const useAudio = true;
+            if (useAudio) {
+                // audio msg
+                // getAudioReply(alias, message.text()).then((reply: Reply) => {
+                //     if (reply.type === ReplyType.AUDIO && reply.audioPath) {
+                //         const fileBox = FileBox.fromFile(reply.audioPath)
+                //         fileBox.mimeType = "audio/silk";
+                //         talker.say(fileBox)
+                //     }
+                // });
+                const fileBox = FileBox.fromUrl('http://localhost:8088/audiomsg/speech.silk')
+                fileBox.mimeType = "audio/silk";
+                fileBox.metadata = {
+                    duration: 3,
+                    voiceLength: 3
+                };
+                talker.say(fileBox)
+            } else {
+                //text msg
+                getReply(alias, message.text())
+                    .then((reply: Reply) => {
+                        if (reply.type === ReplyType.TEXT) {
+                            talker.say(reply.content);
+                            updateChatDb(alias, false, message.text())
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        talker.say(ERROR_MESSAGE);
+                    });
+            }
         } else {
             console.log(`message type: ${message.type()} is not supported`)
         }
@@ -100,6 +121,7 @@ const weChatBot = () => {
         console.log(`room announce: ${JSON.stringify(args)}`)
     }).on('contact-alias', (...args) => {
         console.log(`contact alias: ${JSON.stringify(args)}`)
+        updateContactListOnce()
     }).on('tag', (...args) => {
         console.log(`tag: ${JSON.stringify(args)}`)
     })
@@ -109,7 +131,18 @@ const weChatBot = () => {
         return url.searchParams.get('key');
     }
 
-    async function updateContactList() {
+    async function updateContactListTask() {
+        updateContactListOnce();
+        const SLEEP = 600;
+        console.info(
+            "Bot",
+            "I will re-dump contact weixin id & names after %d second... ",
+            SLEEP
+        );
+        setTimeout(updateContactListTask, SLEEP * 1000);
+    }
+
+    async function updateContactListOnce() {
         const contactList = await bot.Contact.findAll();
         console.info("Bot", "#######################");
         console.info("Bot", "Contact number: %d\n", contactList.length);
@@ -126,14 +159,6 @@ const weChatBot = () => {
         }
 
         setContactList(friendList);
-
-        const SLEEP = 600;
-        console.info(
-            "Bot",
-            "I will re-dump contact weixin id & names after %d second... ",
-            SLEEP
-        );
-        setTimeout(updateContactList, SLEEP * 1000);
     }
 
     const chatText = (userAlias: string, content: string) => {
@@ -148,7 +173,23 @@ const weChatBot = () => {
         }
     }
 
-    return { bot, chatText };
+    const chatAudio = (userAlias: string, audioPath: string, content?: string) => {
+        const friend = getContactByAlias(userAlias);
+        if (friend) {
+            const contact = friend.contact;
+            console.log(`start chat with ${contact.name}`);
+            const fileBox = FileBox.fromFile(audioPath)
+            fileBox.mimeType = "audio/silk";
+            contact.say(fileBox)
+            if (content) {
+                updateChatDb(userAlias, true, content);
+            }
+        } else {
+            console.log(`contact not found with alias ${userAlias}`);
+        }
+    }
+
+    return { bot, chatText, chatAudio };
 }
 
 export default weChatBot
