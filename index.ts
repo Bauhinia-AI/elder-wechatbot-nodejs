@@ -19,10 +19,8 @@ app.post('/startchat', async (req: Request, res: Response) => {
   const data = req.body;
   console.log(data);
   try {
-    if (data.type === 'audio') {
-      const audioContent: ArrayBuffer = data.audio;
-      const filePath = saveAudioFile(audioContent);
-      chatAudio(data.user_id, filePath, data.query);
+    if (data.type === 'audio' && data.audio_url && data.duration) {
+      chatAudio(data.user_id, data.audio_url, data.query, data.duration);
       res.json({ success: true, error: "" });
     } else {
       chatText(data.user_id, data.query);

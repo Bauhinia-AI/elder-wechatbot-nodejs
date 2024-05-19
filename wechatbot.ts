@@ -4,7 +4,7 @@ import useContact from './contact';
 import { Friend } from './contact';
 import { Reply, ReplyType, useAgent } from './useAgent';
 import readline from 'readline';
-import { ERROR_MESSAGE } from './constant';
+import { ERROR_MESSAGE, PUPPET_TOKEN, USE_AUDIO_REPLY, WECHAT_BOT_HOST } from './constant';
 import { FileBox } from 'file-box';
 
 
@@ -14,7 +14,7 @@ const weChatBot = () => {
         getContactByAlias,
         setContactList
     } = useContact();
-    const { getAudioReply, getReply, updateChatDb } = useAgent();
+    const { getReply, updateChatDb } = useAgent();
     async function getVerifyCode(): Promise<string> {
         const rl = readline.createInterface({
             input: process.stdin,
@@ -29,7 +29,7 @@ const weChatBot = () => {
         });
     }
 
-    const token = 'puppet_workpro_4e726745f4814569ad093709e1788ea9' // put your token here
+    const token = PUPPET_TOKEN // put your token here
     const bot = WechatyBuilder.build({
         puppet: '@juzi/wechaty-puppet-service',
         puppetOptions: {
@@ -81,37 +81,33 @@ const weChatBot = () => {
             const text = message.text()
             const alias: string = await talker.alias() ?? "";
             console.log(`talker: ${alias}, text: ${text}`)
-            const useAudio = true;
-            if (useAudio) {
-                // audio msg
-                // getAudioReply(alias, message.text()).then((reply: Reply) => {
-                //     if (reply.type === ReplyType.AUDIO && reply.audioPath) {
-                //         const fileBox = FileBox.fromFile(reply.audioPath)
-                //         fileBox.mimeType = "audio/silk";
-                //         talker.say(fileBox)
-                //     }
-                // });
-                const fileBox = FileBox.fromUrl('http://localhost:8088/audiomsg/speech.silk')
-                fileBox.mimeType = "audio/silk";
-                fileBox.metadata = {
-                    duration: 3,
-                    voiceLength: 3
-                };
-                talker.say(fileBox)
-            } else {
-                //text msg
-                getReply(alias, message.text())
-                    .then((reply: Reply) => {
+            updateChatDb(alias, false, message.text())
+            getReply(alias, message.text(), USE_AUDIO_REPLY)
+                .then((reply: Reply) => {
+                    if (USE_AUDIO_REPLY) {
+                        // audio reply 
+                        if (reply.type === ReplyType.AUDIO && reply.audioUrl && reply.audioDuration) {
+                            console.log('audio reply, url: ' + reply.audioUrl.toString() + ', duration: ' + reply.audioDuration + 's')
+                            const fileBox = FileBox.fromUrl(reply.audioUrl)
+                            fileBox.mimeType = "audio/silk";
+                            fileBox.metadata = {
+                                duration: reply.audioDuration,
+                                voiceLength: reply.audioDuration
+                            };
+                            talker.say(fileBox)
+                        }
+                    } else {
                         if (reply.type === ReplyType.TEXT) {
                             talker.say(reply.content);
-                            updateChatDb(alias, false, message.text())
+
                         }
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        talker.say(ERROR_MESSAGE);
-                    });
-            }
+                    }
+                    updateChatDb(alias, true, reply.content)
+                })
+                .catch(error => {
+                    console.error(error);
+                    talker.say(ERROR_MESSAGE);
+                });
         } else {
             console.log(`message type: ${message.type()} is not supported`)
         }
@@ -173,13 +169,17 @@ const weChatBot = () => {
         }
     }
 
-    const chatAudio = (userAlias: string, audioPath: string, content?: string) => {
+    const chatAudio = (userAlias: string, audioUrl: string, content?: string, duration?: number) => {
         const friend = getContactByAlias(userAlias);
         if (friend) {
             const contact = friend.contact;
-            console.log(`start chat with ${contact.name}`);
-            const fileBox = FileBox.fromFile(audioPath)
+            console.log(`bot start chat with ${contact.name}`);
+            const fileBox = FileBox.fromUrl(audioUrl)
             fileBox.mimeType = "audio/silk";
+            fileBox.metadata = {
+                duration: duration,
+                voiceLength: duration
+            };
             contact.say(fileBox)
             if (content) {
                 updateChatDb(userAlias, true, content);
