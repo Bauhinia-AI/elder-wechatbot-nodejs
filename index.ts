@@ -36,12 +36,3 @@ app.post('/startchat', async (req: Request, res: Response) => {
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
 });
-// const fs = require('fs');
-// const {
-//   decode,
-//   encode,
-//   compare,
-// } = require('silk-sdk');
-// fs.createReadStream('/Users/xyd/Cropo/temp_audio/speech.mp3')
-//   .pipe(encode({ quiet: true }))
-//   .pipe(fs.createWriteStream('/Users/xyd/Cropo/temp_audio/speech.silk'));

@@ -12,7 +12,8 @@ const weChatBot = () => {
     const {
         getContactList,
         getContactByAlias,
-        setContactList
+        setContactList,
+        updateUserInfo
     } = useContact();
     const { getReply, updateChatDb } = useAgent();
     async function getVerifyCode(): Promise<string> {
@@ -72,8 +73,8 @@ const weChatBot = () => {
             }
         }
     }).on('login', user => {
-        console.log(`user: ${JSON.stringify(user)}, friend: ${user.friend()}, ${user.coworker()}`)
-        updateContactListTask()
+        console.log(`user: ${JSON.stringify(user)}, friend: ${user.friend()}, ${user.coworker()}`);
+        updateContactListTask();
     }).on('message', async message => {
         console.log(`new message received: ${JSON.stringify(message)}`)
         if (message.type() == types.Message.Text || message.type() == types.Message.Audio || message.type() == types.Message.Emoticon) {
@@ -120,6 +121,13 @@ const weChatBot = () => {
         updateContactListOnce()
     }).on('tag', (...args) => {
         console.log(`tag: ${JSON.stringify(args)}`)
+    }).on('friendship', async (friendship) => {
+        if (friendship.type() === bot.Friendship.Type.Receive) { // 收到新的好友请求
+        } else if (friendship.type() === bot.Friendship.Type.Confirm) { // 确认好友关系
+            console.log(`与${friendship.contact().name()}的新的好友关系已确认`)
+            updateContactListOnce();
+        }
+
     })
 
     const getQrcodeKey = (urlStr: string) => {
@@ -139,6 +147,7 @@ const weChatBot = () => {
     }
 
     async function updateContactListOnce() {
+        updateUserInfo(); //pull server user info
         const contactList = await bot.Contact.findAll();
         console.info("Bot", "#######################");
         console.info("Bot", "Contact number: %d\n", contactList.length);
@@ -153,7 +162,6 @@ const weChatBot = () => {
             const alias = await contact.alias();
             friendList.push({ 'id': contact.id, 'name': contact.name(), 'alias': alias ?? '', 'contact': contact });
         }
-
         setContactList(friendList);
     }
 
