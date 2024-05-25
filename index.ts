@@ -19,11 +19,12 @@ app.post('/startchat', async (req: Request, res: Response) => {
   const data = req.body;
   console.log(data);
   try {
+    const isRoom = data.room_name ? true : false;
     if (data.type === 'audio' && data.audio_url && data.duration) {
-      chatAudio(data.user_id, data.audio_url, data.query, data.duration);
+      chatAudio(data.user_id, data.audio_url, data.query, data.duration, isRoom, data.room_name);
       res.json({ success: true, error: "" });
     } else {
-      chatText(data.user_id, data.query);
+      chatText(data.user_id, data.query, isRoom, data.room_name);
       res.json({ success: true, error: "" });
     }
 

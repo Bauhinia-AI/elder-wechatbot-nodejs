@@ -61,6 +61,7 @@ const useContact = () => {
                 if (contact.name == wechatName && contact.alias != userName) {
                     contact.alias = userName;
                     contact.contact.alias(userName);
+                    contactList[i] = contact;
                     console.log('uspdate alias for ', contact.name, ' to ', userName)
                 }
             }

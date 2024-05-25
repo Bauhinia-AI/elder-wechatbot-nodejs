@@ -6,6 +6,7 @@ import { Reply, ReplyType, useAgent } from './useAgent';
 import readline from 'readline';
 import { ERROR_MESSAGE, PUPPET_TOKEN, USE_AUDIO_REPLY, WECHAT_BOT_HOST } from './constant';
 import { FileBox } from 'file-box';
+import useRoom, { ChatRoom } from './room';
 
 
 const weChatBot = () => {
@@ -15,6 +16,7 @@ const weChatBot = () => {
         setContactList,
         updateUserInfo
     } = useContact();
+    const { setRoomList, getRoomByTopic } = useRoom();
     const { getReply, updateChatDb } = useAgent();
     async function getVerifyCode(): Promise<string> {
         const rl = readline.createInterface({
@@ -77,6 +79,12 @@ const weChatBot = () => {
         updateContactListTask();
     }).on('message', async message => {
         console.log(`new message received: ${JSON.stringify(message)}`)
+        const room = message.room();
+        if (room) {
+            // 暂不处理群聊消息
+            console.log(`message from room: ${room.id}`)
+            return;
+        }
         if (message.type() == types.Message.Text || message.type() == types.Message.Audio || message.type() == types.Message.Emoticon) {
             const talker = message.talker()
             const text = message.text()
@@ -148,10 +156,14 @@ const weChatBot = () => {
 
     async function updateContactListOnce() {
         updateUserInfo(); //pull server user info
-        const contactList = await bot.Contact.findAll();
-        console.info("Bot", "#######################");
-        console.info("Bot", "Contact number: %d\n", contactList.length);
+        updateFriendList();
+        updateRoomList();
+    }
 
+    async function updateFriendList() {
+        const contactList = await bot.Contact.findAll();
+        // console.info("Bot", "#######################");
+        console.info("Bot", "Contact number: %d\n", contactList.length);
         let friendList: Friend[] = [];
         /**
          * official contacts list
@@ -159,13 +171,42 @@ const weChatBot = () => {
         for (let i = 0; i < contactList.length; i++) {
             const contact = contactList[i];
             //   console.info(`Contact: ${contact.id} : ${contact.name()}, alias: ${contact.alias()}`);
-            const alias = await contact.alias();
+            const alias = await contact.alias().then((alias) => {
+                console.log(`alias: ${alias}`);
+                return alias;
+            });
             friendList.push({ 'id': contact.id, 'name': contact.name(), 'alias': alias ?? '', 'contact': contact });
+            console.log(`contact: ${contact.name()}, alias: ${alias}`);
         }
+        // console.log(friendList);
         setContactList(friendList);
     }
 
-    const chatText = (userAlias: string, content: string) => {
+    async function updateRoomList() {
+        const contactList = await bot.Room.findAll();
+        console.info("Bot", "Room number: %d\n", contactList.length);
+        let roomList: ChatRoom[] = [];
+        for (let i = 0; i < contactList.length; i++) {
+            const contact = contactList[i];
+            const topic = await contact.topic();
+            roomList.push({ 'roomName': topic, 'room': contact });
+        }
+        setRoomList(roomList);
+    }
+
+    const chatText = (userAlias: string, content: string, isRoom?: boolean, roomName?: string) => {
+        if (isRoom && roomName) {
+            // room chat
+            const room = getRoomByTopic(roomName);
+            if (room) {
+                console.log(`start chat with room ${room.roomName}`);
+                room.room.say(content);
+            } else {
+                console.log(`room not found with name ${roomName}`);
+            }
+            return;
+        }
+        // else friend chat
         const friend = getContactByAlias(userAlias);
         if (friend) {
             const contact = friend.contact;
@@ -177,7 +218,24 @@ const weChatBot = () => {
         }
     }
 
-    const chatAudio = (userAlias: string, audioUrl: string, content?: string, duration?: number) => {
+    const chatAudio = (userAlias: string, audioUrl: string, content?: string, duration?: number, isRoom?: boolean, roomName?: string) => {
+        if (isRoom && roomName) {
+            // room chat
+            const room = getRoomByTopic(roomName);
+            if (room) {
+                console.log(`start chat with room ${room.roomName}`);
+                const fileBox = FileBox.fromUrl(audioUrl)
+                fileBox.mimeType = "audio/silk";
+                fileBox.metadata = {
+                    duration: duration,
+                    voiceLength: duration
+                };
+                room.room.say(fileBox)
+            } else {
+                console.log(`room not found with name ${roomName}`);
+            }
+        }
+        // friend chat
         const friend = getContactByAlias(userAlias);
         if (friend) {
             const contact = friend.contact;
