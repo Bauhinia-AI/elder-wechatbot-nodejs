@@ -172,11 +172,11 @@ const weChatBot = () => {
             const contact = contactList[i];
             //   console.info(`Contact: ${contact.id} : ${contact.name()}, alias: ${contact.alias()}`);
             const alias = await contact.alias().then((alias) => {
-                console.log(`alias: ${alias}`);
+                // console.log(`alias: ${alias}`);
                 return alias;
             });
             friendList.push({ 'id': contact.id, 'name': contact.name(), 'alias': alias ?? '', 'contact': contact });
-            console.log(`contact: ${contact.name()}, alias: ${alias}`);
+            // console.log(`contact: ${contact.name()}, alias: ${alias}`);
         }
         // console.log(friendList);
         setContactList(friendList);
