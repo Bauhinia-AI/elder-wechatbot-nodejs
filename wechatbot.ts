@@ -4,7 +4,7 @@ import useContact from './contact';
 import { Friend } from './contact';
 import { Reply, ReplyType, useAgent } from './useAgent';
 import readline from 'readline';
-import { ERROR_MESSAGE, PUPPET_TOKEN, USE_AUDIO_REPLY, WECHAT_BOT_HOST } from './constant';
+import { ERROR_MESSAGE, PUPPET_TOKEN, ROOM_NAME_LOG, USE_AUDIO_REPLY, WECHAT_BOT_HOST } from './constant';
 import { FileBox } from 'file-box';
 import useRoom, { ChatRoom } from './room';
 
@@ -111,6 +111,9 @@ const weChatBot = () => {
 
                         }
                     }
+                    if (reply.type === ReplyType.ERROR) {
+                        roomLog(reply.content);
+                    }
                     updateChatDb(alias, true, reply.content)
                 })
                 .catch(error => {
@@ -137,6 +140,10 @@ const weChatBot = () => {
         }
 
     })
+
+    const roomLog = (msg) => {
+        chatText("", msg, true, ROOM_NAME_LOG);
+    }
 
     const getQrcodeKey = (urlStr: string) => {
         const url = new URL(urlStr);
