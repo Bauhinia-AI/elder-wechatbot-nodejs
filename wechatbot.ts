@@ -141,7 +141,7 @@ const weChatBot = () => {
 
     })
 
-    const roomLog = (msg) => {
+    const roomLog = (msg: string) => {
         chatText("", msg, true, ROOM_NAME_LOG);
     }
 
