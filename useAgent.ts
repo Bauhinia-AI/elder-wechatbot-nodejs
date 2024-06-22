@@ -35,7 +35,7 @@ export const useAgent = () => {
                     })
                     .catch((error: AxiosError) => {
                         console.error(error);
-                        return { 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE };
+                        return { 'type': ReplyType.ERROR, 'content': error.message };
                     });
             } else return axios.post(url, data)
                 .then((response: AxiosResponse) => {
@@ -44,11 +44,11 @@ export const useAgent = () => {
                 })
                 .catch((error: AxiosError) => {
                     console.error(error);
-                    return { 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE };
+                    return { 'type': ReplyType.ERROR, 'content': error.message };
                 });
         } catch (e) {
             console.error(e);
-            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': ERROR_MESSAGE });
+            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': e });
         }
     }
 

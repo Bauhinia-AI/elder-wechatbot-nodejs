@@ -112,13 +112,12 @@ const weChatBot = () => {
                         }
                     }
                     if (reply.type === ReplyType.ERROR) {
-                        roomLog(reply.content);
+                        roomLog({ 'user': alias, 'content': message.text(), 'error_msg': reply.content }.toString());
                     }
                     updateChatDb(alias, true, reply.content)
                 })
                 .catch(error => {
                     console.error(error);
-                    talker.say(ERROR_MESSAGE);
                 });
         } else {
             console.log(`message type: ${message.type()} is not supported`)
