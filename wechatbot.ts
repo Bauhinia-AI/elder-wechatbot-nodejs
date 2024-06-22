@@ -112,7 +112,7 @@ const weChatBot = () => {
                         }
                     }
                     if (reply.type === ReplyType.ERROR) {
-                        roomLog({ 'user': alias, 'content': message.text(), 'error_msg': reply.content }.toString());
+                        roomLog(JSON.stringify({ 'user': alias, 'content': message.text(), 'error_msg': reply.content }));
                     }
                     updateChatDb(alias, true, reply.content)
                 })
