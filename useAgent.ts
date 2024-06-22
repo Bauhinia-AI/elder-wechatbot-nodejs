@@ -46,9 +46,8 @@ export const useAgent = () => {
                     console.error(error);
                     return { 'type': ReplyType.ERROR, 'content': error.message };
                 });
-        } catch (e) {
-            console.error(e);
-            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': e });
+        } catch (e: any) {
+            return Promise.resolve({ 'type': ReplyType.ERROR, 'content': e.toString() });
         }
     }
 
